@@ -89,4 +89,4 @@ def add_to_chat_history(username, message):
 
 if __name__ == '__main__':
     app.secret_key = 'secret_key'
-    socketio.run(app, host='0.0.0.0', port=8080)
+    socketio.run(debug=False,app, host='0.0.0.0', port=8080)
