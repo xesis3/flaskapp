@@ -1,0 +1,319 @@
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret_key'
+socketio = SocketIO(app)
+
+# Store the chat messages
+chat_messages = []
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@socketio.on('connect')
+def handle_connect():
+    emit('chat_history', chat_messages)
+
+@socketio.on('message')
+def handle_message(message):
+    chat_messages.append(message)
+    emit('message', message, broadcast=True)
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=8080)
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Application</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .chat-log {
+            width: 400px;
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        input[type="text"], button {
+            margin-top: 10px;
+        }
+        input[type="text"], button, .chat-log {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-log" id="chatLog"></div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script>
+        const chatLog = document.getElementById('chatLog');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // Create a WebSocket connection
+        const socket = io();
+
+        // Function to append a message to the chat log
+        function appendMessage(message) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            chatLog.appendChild(p);
+        }
+
+        // Event listener for incoming messages from the server
+        socket.on('message', function (message) {
+            appendMessage(message);
+        });
+
+        // Event listener for chat history from the server
+        socket.on('chat_history', function (history) {
+            history.forEach(function (message) {
+                appendMessage(message);
+            });
+        });
+
+        // Event listener for send button click
+        sendButton.addEventListener('click', function () {
+            const message = messageInput.value;
+            if (message !== '') {
+                socket.emit('message', message);
+                messageInput.value = '';
+            }
+        });
+
+        // Event listener for Enter key press in the message input field
+        messageInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Application</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <style>
+        /* Styles here */
+    </style>
+</head>
+<body>
+    <div>
+        <label for="usernameInput">Username:</label>
+        <input type="text" id="usernameInput" placeholder="Enter your username...">
+    </div>
+    <div>
+        <label for="roomInput">Room ID:</label>
+        <input type="text" id="roomInput" placeholder="Enter the room ID...">
+    </div>
+    <div>
+        <button id="joinButton">Join</button>
+        <button id="leaveButton">Leave</button>
+    </div>
+    <div class="chat-container">
+        <div class="chat-log" id="chatLog"></div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script>
+        const chatLog = document.getElementById('chatLog');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const joinButton = document.getElementById('joinButton');
+        const leaveButton = document.getElementById('leaveButton');
+        const usernameInput = document.getElementById('usernameInput');
+        const roomInput = document.getElementById('roomInput');
+
+        // Create a WebSocket connection
+        const socket = io();
+
+        // Function to append a message to the chat log
+        function appendMessage(username, message) {
+            const p = document.createElement('p');
+            p.textContent = `${username}: ${message}`;
+            chatLog.appendChild(p);
+        }
+
+        // Event listener for incoming messages from the server
+        socket.on('message', function (data) {
+            const { username, message } = data;
+            appendMessage(username, message);
+        });
+
+        // Event listener for chat history from the server
+        socket.on('chat_history', function (history) {
+            history.forEach(function (data) {
+                const { username, message } = data;
+                appendMessage(username, message);
+            });
+        });
+
+        // Event listener for join button click
+        joinButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            if (username !== '' && room !== '') {
+                socket.emit('join', { username, room });
+            }
+        });
+
+        // Event listener for leave button click
+        leaveButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            if (username !== '' && room !== '') {
+                socket.emit('leave', { username, room });
+            }
+        });
+
+        // Event listener for send button click
+        sendButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            const message = messageInput.value;
+            if (username !== '' && room !== '' && message !== '') {
+                socket.emit('message', { username, room, message });
+                messageInput.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Application</title>
+    <style>
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-log" id="chatLog"></div>
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+        </div>
+        <div>
+            <label for="usernameInput">Username:</label>
+            <input type="text" id="usernameInput" placeholder="Enter your username...">
+        </div>
+        <div>
+            <label for="roomInput">Room ID:</label>
+            <input type="text" id="roomInput" placeholder="Enter the room ID...">
+        </div>
+        <div>
+            <button id="joinButton">Join</button>
+            <button id="leaveButton" disabled>Leave</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script>
+        const chatLog = document.getElementById('chatLog');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const joinButton = document.getElementById('joinButton');
+        const leaveButton = document.getElementById('leaveButton');
+        const usernameInput = document.getElementById('usernameInput');
+        const roomInput = document.getElementById('roomInput');
+
+        // Create a WebSocket connection
+        const socket = io();
+
+        // Function to append a message to the chat log
+        function appendMessage(username, message) {
+            const p = document.createElement('p');
+            p.textContent = `${username}: ${message}`;
+            chatLog.appendChild(p);
+        }
+
+        // Function to append an action message to the chat log
+        function appendActionMessage(message) {
+            const p = document.createElement('p');
+            p.classList.add('action-message');
+            p.textContent = message;
+            chatLog.appendChild(p);
+        }
+
+        // Event listener for incoming messages from the server
+        socket.on('message', function (data) {
+            const { username, message } = data;
+            appendMessage(username, message);
+        });
+
+        // Event listener for chat history from the server
+        socket.on('chat_history', function (history) {
+            history.forEach(function (data) {
+                const { username, message } = data;
+                appendMessage(username, message);
+            });
+        });
+
+        // Event listener for join button click
+        joinButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            if (username !== '' && room !== '') {
+                socket.emit('join', { username, room });
+                appendActionMessage(`Joined room: ${room}`);
+                joinButton.disabled = true;
+                leaveButton.disabled = false;
+            }
+        });
+
+        // Event listener for leave button click
+        leaveButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            if (username !== '' && room !== '') {
+                socket.emit('leave', { username, room });
+                appendActionMessage(`Left room: ${room}`);
+                joinButton.disabled = false;
+                leaveButton.disabled = true;
+            }
+        });
+
+        // Event listener for send button click
+        sendButton.addEventListener('click', function () {
+            const username = usernameInput.value;
+            const room = roomInput.value;
+            const message = messageInput.value;
+            if (username !== '' && room !== '' && message !== '') {
+                socket.emit('message', { username, room, message });
+                messageInput.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
